@@ -10,3 +10,6 @@
 
 **Видеокарта(GPU):** AMD Radeon Graphics, встроенная
 
+
+
+

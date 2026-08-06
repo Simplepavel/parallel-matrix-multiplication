@@ -255,3 +255,9 @@ matrix<T> operator*(const matrix<T> &argv1, const matrix<T> &argv2)
     }
     return ans;
 }
+
+template <typename T>
+bool operator==(const matrix<T> &argv1, const matrix<T> &argv2)
+{
+    return (argv1.n() == argv2.n() && argv1.m() == argv2.m() && argv1.data() == argv2.data());
+}
