@@ -1,263 +1,239 @@
 #include <vector>
 #include <iostream>
+#include <memory>
 #include <queue>
-#include <stack>
-struct bound
+
+template <typename T>
+struct data
 {
-    std::pair<int, int> start;
-    std::pair<int, int> end;
+    std::vector<T> _numbers;
+    unsigned int _n;
+    unsigned int _m;
+    data(unsigned int n, unsigned int m) : _n(n), _m(m), _numbers(n * m, 0) {}
 };
 
-struct task
+enum operations
 {
-    bound bound1;
-    bound bound2;
+    PLUS,
+    MINUS,
+    MULTIPLY
+};
+
+struct bound
+{
+    unsigned int row_start;
+    unsigned int column_start;
+    unsigned int row_end;
+    unsigned int column_end;
+
+    bound(unsigned int _row_start, unsigned int _row_end, unsigned int _column_start, unsigned int _column_end)
+    {
+        if (_row_start > _row_end || _column_start > _column_end)
+        {
+            throw "invalid argument(bound)";
+        }
+        row_start = _row_start;
+        column_start = _column_start;
+
+        row_end = _row_end;
+        column_end = _column_end;
+    }
 };
 
 template <typename T>
 class matrix
 {
-    unsigned int _n; // row
-    unsigned int _m; // column
-    std::vector<T> _data;
+    std::shared_ptr<data<T>> _data;
+    bound _bound;
 
 public:
-    matrix(unsigned int n, unsigned int m) : _n(n), _m(m), _data(n * m, 0) {}
-    unsigned int n() const { return _n; }
-    unsigned int m() const { return _m; }
-    unsigned int count() const { return _m * _n; }
-    const std::vector<T> &data() const { return _data; }
+    matrix(unsigned int n, unsigned int m) : _data(std::make_shared<data<T>>(n, m)), _bound(0, n, 0, m) {}
+    matrix(const matrix<T> &parent, const bound &_b) : _data(parent._data), _bound(_b)
+    {
+        _bound.row_start += parent._bound.row_start;
+        _bound.column_start += parent._bound.column_start;
+        _bound.row_end += parent._bound.row_start;
+        _bound.column_end += parent._bound.column_start;
+    }
+    void show(std::ostream &cout)
+    {
+        unsigned int step = _data->_m;
+        for (unsigned int i = _bound.row_start; i < _bound.row_end; ++i)
+        {
+            for (unsigned int j = _bound.column_start; j < _bound.column_end; ++j)
+            {
+                cout << _data->_numbers[i * step + j] << ' ';
+            }
+            cout << '\n';
+        }
+    }
     T &set(unsigned int n, unsigned int m)
     {
+        unsigned int _n = _bound.row_end - _bound.row_start;
+        unsigned int _m = _bound.column_end - _bound.column_start;
+        unsigned int step = _data->_m;
         if (n < 1 || n > _n || m < 1 || m > _m)
         {
             throw "Out of bounds";
         }
-        return _data[(n - 1) * _m + (m - 1)];
+        unsigned int idx1 = _bound.row_start + n - 1;
+        unsigned int idx2 = _bound.column_start + m - 1;
+        return _data->_numbers[idx1 * step + idx2];
     }
+
     const T &get(unsigned int n, unsigned int m) const
     {
+        unsigned int _n = _bound.row_end - _bound.row_start;
+        unsigned int _m = _bound.column_end - _bound.column_start;
+        unsigned int step = _data->_m;
         if (n < 1 || n > _n || m < 1 || m > _m)
         {
             throw "Out of bounds";
         }
-        return _data[(n - 1) * _m + (m - 1)];
+        unsigned int idx1 = _bound.row_start + n - 1;
+        unsigned int idx2 = _bound.column_start + m - 1;
+        return _data->_numbers[idx1 * step + idx2];
     }
-    void show(std::ostream &out)
+    std::vector<matrix<T>> split()
     {
-        for (int idx = 0; idx < _data.size(); ++idx)
+        unsigned int _n = _bound.row_end - _bound.row_start;
+        unsigned int _m = _bound.column_end - _bound.column_start;
+        const matrix<T> &mother = *this;
+        if (_n == 1 && _m > 1)
         {
-            out << _data[idx] << ' ';
-            if (idx % _m == _m - 1)
-            {
-                out << '\n';
-            }
+            bound b1(0, mother.n(), 0, mother.m() / 2);
+            matrix<int> A11(mother, b1);
+
+            bound b2(0, mother.n(), mother.m() / 2, mother.m());
+            matrix<int> A12(mother, b2);
+
+            return std::vector<matrix<T>>{A11, A12};
         }
+        if (_n > 1 && _m == 1)
+        {
+            bound b1(0, mother.n() / 2, 0, mother.m());
+            matrix<int> A11(mother, b1);
+
+            bound b3(mother.n() / 2, mother.n(), 0, mother.m());
+            matrix<int> A21(mother, b3);
+
+            return std::vector<matrix<T>>{A11, A21};
+        }
+        if (_n == 1 && _m == 1)
+        {
+            bound b1(0, mother.n(), 0, mother.m());
+            matrix<int> A11(mother, b1);
+            return std::vector<matrix<int>>{A11};
+        }
+
+        bound b1(0, mother.n() / 2, 0, mother.m() / 2);
+        matrix<int> A11(mother, b1);
+
+        bound b2(0, mother.n() / 2, mother.m() / 2, mother.m());
+        matrix<int> A12(mother, b2);
+
+        bound b3(mother.n() / 2, mother.n(), 0, mother.m() / 2);
+        matrix<int> A21(mother, b3);
+
+        bound b4(mother.n() / 2, mother.n(), mother.m() / 2, mother.m());
+        matrix<int> A22(mother, b4);
+
+        return std::vector<matrix<T>>{A11, A12, A21, A22};
     }
+    unsigned int n() const { return _bound.row_end - _bound.row_start; }
+    unsigned int m() const { return _bound.column_end - _bound.column_start; }
+    unsigned int count() const { return n() * m(); }
+};
+
+template <typename U>
+struct task
+{
+    matrix<U> argv1;
+    matrix<U> argv2;
+    operations operation;
 };
 
 template <typename T>
 matrix<T> operator*(const matrix<T> &argv1, const matrix<T> &argv2)
 {
-
     if (argv1.m() != argv2.n())
     {
-        throw "invalid argument";
+        throw "size mismatch";
     }
-    std::stack<task> stck;
-    task t0;
+    std::queue<task<T>> qqq;
     matrix<T> ans(argv1.n(), argv2.m());
+    task<T> t0;
+    t0.argv1 = argv1;
+    t0.argv2 = argv2;
+    t0.operation = operations::MULTIPLY;
 
-    t0.bound1.start = std::pair<int, int>(0, 0);
-    t0.bound1.end = std::pair<int, int>(argv1.n(), argv1.m());
+    qqq.push(t0);
 
-    t0.bound2.start = std::pair<int, int>(0, 0);
-    t0.bound2.end = std::pair<int, int>(argv2.n(), argv2.m());
-
-    stck.push(t0);
-
-    while (!stck.empty())
+    while (!qqq.empty())
     {
-        task t = stck.top();
-        stck.pop();
-        bound b1 = t.bound1;
-
-        unsigned int n1 = b1.end.first - b1.start.first;
-        unsigned int m1 = b1.end.second - b1.start.second;
-
-        bound b2 = t.bound2;
-
-        unsigned int n2 = b2.end.first - b2.start.first;
-        unsigned int m2 = b2.end.second - b2.start.second;
-
-        if (n1 * m1 < 10000 && n2 * m2 < 10000)
+        task<T> t = qqq.front();
+        qqq.pop();
+        if (t.argv1.count() < 10000 && t.argv2.count() < 10000)
         {
-            for (unsigned int i = b1.start.first; i < b1.end.first; ++i) // номер строки 1-й матрицы
+            for (unsigned int i = t.argv1._bound.row_start; i < t.argv1._bound.row_end; ++i) // номер строки 1-й матрицы
             {
-                for (unsigned int j = b2.start.second; j < b2.end.second; ++j)
+                for (unsigned int j = t.argv2._bound.column_start; j < t.argv2._bound.column_end; ++j)
                 {
                     T result = 0;
-                    for (unsigned int k = b1.start.second; k < b1.end.second; ++k)
+                    for (unsigned int k = t.argv1._bound.column_start; k < t.argv1._bound.column_end; ++k)
                     {
-                        int q1 = argv1.get(i + 1, k + 1);
-                        int q2 = argv2.get(k + 1, j + 1);
-                        result += q1 * q2;
+                        {
+                            T q1 = t.argv1.get(i + 1, k + 1);
+                            T q2 = t.argv2.get(k + 1, j + 1);
+                            result += q1 * q2;
+                        }
+                        ans.set(i + 1, j + 1) += result;
                     }
-                    ans.set(i + 1, j + 1) += result;
                 }
             }
         }
         else
         {
-            if (n1 > 1 && m1 > 1 && n2 > 1 && m2 > 1)
+            std::vector<matrix<T>> daugther1 = t.argv1.split();
+            std::vector<matrix<T>> daugther2 = t.argv2.split();
+            if (t.argv1.n() > 1 && t.argv1.m() > 1 && t.argv2.n() > 1 && t.argv2.m() > 1)
             {
-                task t1;
-                t1.bound1.start = std::pair<int, int>(b1.start.first, b1.start.second);
-                t1.bound1.end = std::pair<int, int>(b1.start.first + n1 / 2, b1.start.second + m1 / 2);
-
-                t1.bound2.start = std::pair<int, int>(b2.start.first, b2.start.second);
-                t1.bound2.end = std::pair<int, int>(b2.start.first + n2 / 2, b2.start.second + m2 / 2);
-
-                stck.push(t1);
-
-                task t2;
-                t2.bound1.start = std::pair<int, int>(b1.start.first, b1.start.second + m1 / 2);
-                t2.bound1.end = std::pair<int, int>(b1.start.first + n1 / 2, b1.start.second + m1);
-
-                t2.bound2.start = std::pair<int, int>(b2.start.first + n2 / 2, b2.start.second);
-                t2.bound2.end = std::pair<int, int>(b2.start.first + n2, b2.start.second + m2 / 2);
-
-                stck.push(t2);
-
-                task t3;
-                t3.bound1.start = std::pair<int, int>(b1.start.first, b1.start.second);
-                t3.bound1.end = std::pair<int, int>(b1.start.first + n1 / 2, b1.start.second + m1 / 2);
-
-                t3.bound2.start = std::pair<int, int>(b2.start.first, b2.start.second + m2 / 2);
-                t3.bound2.end = std::pair<int, int>(b2.start.first + n2 / 2, b2.start.second + m2);
-
-                stck.push(t3);
-
-                task t4;
-
-                t4.bound1.start = std::pair<int, int>(b1.start.first, b1.start.second + m1 / 2);
-                t4.bound1.end = std::pair<int, int>(b1.start.first + n1 / 2, b1.start.second + m1);
-
-                t4.bound2.start = std::pair<int, int>(b2.start.first + n2 / 2, b2.start.second + m2 / 2);
-                t4.bound2.end = std::pair<int, int>(b2.start.first + n2, b2.start.second + m2);
-
-                stck.push(t4);
-
-                task t5;
-
-                t5.bound1.start = std::pair<int, int>(b1.start.first + n1 / 2, b1.start.second);
-                t5.bound1.end = std::pair<int, int>(b1.start.first + n1, b1.start.second + m1 / 2);
-
-                t5.bound2.start = std::pair<int, int>(b2.start.first, b2.start.second);
-                t5.bound2.end = std::pair<int, int>(b2.start.first + n2 / 2, b2.start.second + m2 / 2);
-
-                stck.push(t5);
-
-                task t6;
-
-                t6.bound1.start = std::pair<int, int>(b1.start.first + n1 / 2, b1.start.second + m1 / 2);
-                t6.bound1.end = std::pair<int, int>(b1.start.first + n1, b1.start.second + m1);
-
-                t6.bound2.start = std::pair<int, int>(b2.start.first + n2 / 2, b2.start.second);
-                t6.bound2.end = std::pair<int, int>(b2.start.first + n2, b2.start.second + m2 / 2);
-
-                stck.push(t6);
-
-                task t7;
-
-                t7.bound1.start = std::pair<int, int>(b1.start.first + n1 / 2, b1.start.second);
-                t7.bound1.end = std::pair<int, int>(b1.start.first + n1, b1.start.second + m1 / 2);
-
-                t7.bound2.start = std::pair<int, int>(b2.start.first, b2.start.second + m2 / 2);
-                t7.bound2.end = std::pair<int, int>(b2.start.first + n2 / 2, b2.start.second + m2);
-
-                stck.push(t7);
-
-                task t8;
-
-                t8.bound1.start = std::pair<int, int>(b1.start.first + n1 / 2, b1.start.second + m1 / 2);
-                t8.bound1.end = std::pair<int, int>(b1.start.first + n1, b1.start.second + m1);
-
-                t8.bound2.start = std::pair<int, int>(b2.start.first + n2 / 2, b2.start.second + m2 / 2);
-                t8.bound2.end = std::pair<int, int>(b2.start.first + n2, b2.start.second + m2);
-
-                stck.push(t8);
-            }
-            else if (n1 == 1 && m1 > 1 && n2 > 1 && m2 > 1)
-            {
-                task t1;
-                t1.bound1.start = std::pair<int, int>(b1.start.first, b1.start.second);
-                t1.bound1.end = std::pair<int, int>(b1.end.first + n1, b1.end.second + m1 / 2);
-
-                t1.bound2.start = std::pair<int, int>(b2.start.first, b2.start.second);
-                t1.bound2.end = std::pair<int, int>(b2.end.first + n2 / 2, b2.end.second + m2);
-
-                stck.push(t1);
-
-                task t2;
-
-                t2.bound1.start = std::pair<int, int>(b1.start.first, b1.start.second + m1 / 2);
-                t2.bound1.end = std::pair<int, int>(b1.end.first + n1, b1.end.second + m1);
-
-                t2.bound2.start = std::pair<int, int>(b2.start.first + n2 / 2, b2.start.second);
-                t2.bound2.end = std::pair<int, int>(b2.end.first + n2, b2.end.second + m2);
-
-                stck.push(t2);
-            }
-            else if (n1 > 1 && m1 == 1 && n2 == 1 && m2 > 1)
-            {
-                task t1;
-                t1.bound1.start = std::pair<int, int>(b1.start.first, b1.start.second);
-                t1.bound1.end = std::pair<int, int>(b1.end.first + n1 / 2, b1.end.second + m1);
-
-                t1.bound2.start = std::pair<int, int>(b2.start.first, b2.start.second);
-                t1.bound2.end = std::pair<int, int>(b2.end.first + n2, b2.end.second + m2 / 2);
-
-                stck.push(t1);
-
-                task t2;
-
-                t2.bound1.start = std::pair<int, int>(b1.start.first + n1 / 2, b1.start.second);
-                t2.bound1.end = std::pair<int, int>(b1.end.first + n1, b1.end.second + m1);
-
-                t2.bound2.start = std::pair<int, int>(b2.start.first, b2.start.second + m2 / 2);
-                t2.bound2.end = std::pair<int, int>(b2.end.first + n2, b2.end.second + m2);
-
-                stck.push(t2);
-            }
-            else if (n1 > 1 && m1 > 1 && n2 > 1 && m2 == 1)
-            {
-                task t1;
-                t1.bound1.start = std::pair<int, int>(b1.start.first, b1.start.second);
-                t1.bound1.end = std::pair<int, int>(b1.end.first + n1, b1.end.second + m1 / 2);
-
-                t1.bound2.start = std::pair<int, int>(b2.start.first, b2.start.second);
-                t1.bound2.end = std::pair<int, int>(b2.end.first + n2 / 2, b2.end.second + m2);
-
-                stck.push(t1);
-
-                task t2;
-
-                t2.bound1.start = std::pair<int, int>(b1.start.first, b1.start.second + m1 / 2);
-                t2.bound1.end = std::pair<int, int>(b1.end.first + n1, b1.end.second + m1);
-
-                t2.bound2.start = std::pair<int, int>(b2.start.first + n2 / 2, b2.start.second);
-                t2.bound2.end = std::pair<int, int>(b2.end.first + n2, b2.end.second + m2);
-
-                stck.push(t2);
+                 
             }
         }
     }
-    return ans;
 }
 
 template <typename T>
-bool operator==(const matrix<T> &argv1, const matrix<T> &argv2)
+matrix<T> operator+(const matrix<T> &argv1, const matrix<T> &argv2)
 {
-    return (argv1.n() == argv2.n() && argv1.m() == argv2.m() && argv1.data() == argv2.data());
+    if (argv1.n() != argv2.n() || argv1.m() != argv2.m())
+    {
+        throw "size mismatch";
+    }
+    matrix<T> result(argv1.n(), argv1.m());
+    for (int i = 0; i < argv1.count(); ++i)
+    {
+        unsigned int idx1 = i / argv1.m();
+        unsigned int idx2 = i % argv1.m();
+        result.set(idx1 + 1, idx2 + 1) = argv1.get(idx1 + 1, idx2 + 1) + argv2.get(idx1 + 1, idx2 + 1);
+    }
+    return result;
+}
+
+template <typename T>
+matrix<T> operator-(const matrix<T> &argv1, const matrix<T> &argv2)
+{
+    if (argv1.n() != argv2.n() || argv1.m() != argv2.m())
+    {
+        throw "size mismatch";
+    }
+    matrix<T> result(argv1.n(), argv1.m());
+    for (int i = 0; i < argv1.count(); ++i)
+    {
+        unsigned int idx1 = i / argv1.m();
+        unsigned int idx2 = i % argv1.m();
+        result.set(idx1 + 1, idx2 + 1) = argv1.get(idx1 + 1, idx2 + 1) - argv2.get(idx1 + 1, idx2 + 1);
+    }
+    return result;
 }
