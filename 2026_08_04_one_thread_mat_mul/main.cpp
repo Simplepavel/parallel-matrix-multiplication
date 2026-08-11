@@ -72,7 +72,7 @@
 
 int main()
 {
-    matrix<int> mother1(5, 6);
+    matrix<int> mother1(256, 256);
 
     for (int i = 1; i <= mother1.n(); ++i)
     {
@@ -81,10 +81,10 @@ int main()
             mother1.set(i, j) = rand() % 10 - 5;
         }
     }
-    mother1.show(std::cout);
-    std::cout << '\n';
+    std::ofstream file1("../tests/m1");
+    mother1.show(file1);
 
-    matrix<int> mother2(5, 6);
+    matrix<int> mother2(256, 256);
 
     for (int i = 1; i <= mother2.n(); ++i)
     {
@@ -94,8 +94,17 @@ int main()
         }
     }
 
-    mother2.show(std::cout);
-    std::cout << '\n';
-    matrix<int> mother = mother1 + mother2;
-    mother.show(std::cout);
+    std::ofstream file2("../tests/m2");
+    mother2.show(file2);
+    try
+    {
+        matrix<int> mother = strassen(mother1, mother2);
+        std::ofstream file("../tests/m");
+        mother.show(file);
+    }
+    catch (char const *message)
+    {
+        std::cout << message;
+    }
+    return 0;
 }
