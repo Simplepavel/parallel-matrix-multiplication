@@ -157,7 +157,7 @@ public:
     {
         if (n() != argv.n() * 2)
         {
-            throw "size mismatch";
+            qwertuiyoqwert throw "size mismatch";
         }
         switch (letter)
         {
