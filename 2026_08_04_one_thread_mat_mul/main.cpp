@@ -72,39 +72,19 @@
 
 int main()
 {
-    matrix<int> mother1(256, 256);
-
-    for (int i = 1; i <= mother1.n(); ++i)
-    {
-        for (int j = 1; j <= mother1.m(); ++j)
-        {
-            mother1.set(i, j) = rand() % 10 - 5;
-        }
-    }
-    std::ofstream file1("../tests/m1");
-    mother1.show(file1);
-
-    matrix<int> mother2(256, 256);
-
-    for (int i = 1; i <= mother2.n(); ++i)
-    {
-        for (int j = 1; j <= mother2.m(); ++j)
-        {
-            mother2.set(i, j) = rand() % 10 - 5;
-        }
-    }
-
-    std::ofstream file2("../tests/m2");
-    mother2.show(file2);
-    try
-    {
-        matrix<int> mother = strassen(mother1, mother2);
-        std::ofstream file("../tests/m");
-        mother.show(file);
-    }
-    catch (char const *message)
-    {
-        std::cout << message;
-    }
+    std::shared_ptr<int[]> data(new int[64]{});
+    matrix<int> m1;
+    matrix<int> m2;
+    m1.set_data(data);
+    m2.set_data(data);
+    m1.set_bound(bound(0, 8, 8));
+    m2.set_bound(bound(0, 8, 8));
+    m1.set(1, 1) = 256;
+    m1.set(2, 2) = 12;
+    m1.set(3, 3) = 81;
+    m1.set(4, 4) = 11;
+    m1.set(5, 5) = -8;
+    m1.show(std::cout);
+    strassen(m1, m2);
     return 0;
 }

@@ -3,27 +3,38 @@
 #include <memory>
 #include <stack>
 
-template <typename T>
-struct data
+enum letters : char
 {
-    std::vector<T> _numbers;
-    unsigned int _n;
-    unsigned int _m;
-    data(unsigned int n, unsigned int m) : _n(n), _m(m), _numbers(n * m, 0) {}
+    NONE = -1,
+    V2,
+    V1,
+    H2,
+    H1,
+    D2,
+    D1,
+    D
 };
 
 struct bound
+{
+    unsigned int start;
+    unsigned int n;
+    unsigned int m;
+    bound() : start(0), n(0), m(0) {}
+    bound(unsigned int _start, unsigned int _n, unsigned int _m) : start(_start), n(_n), m(_m) {}
+};
+
+struct rect
 {
     unsigned int row_start;
     unsigned int column_start;
     unsigned int row_end;
     unsigned int column_end;
-    // bound() : row_start(0), column_start(0), row_end(0), column_end(0) {}
-    bound(const unsigned int &_row_start, const unsigned int &_row_end, const unsigned int &_column_start, const unsigned int &_column_end)
+    rect(const unsigned int &_row_start, const unsigned int &_row_end, const unsigned int &_column_start, const unsigned int &_column_end)
     {
         if (_row_start > _row_end || _column_start > _column_end)
         {
-            throw "invalid argument(bound)";
+            throw "invalid argument(rect)";
         }
         row_start = _row_start;
         column_start = _column_start;
@@ -36,163 +47,100 @@ struct bound
     unsigned int m() const { return column_end - column_start; }
 };
 
-enum letters : char
+template <typename T>
+struct memory
 {
-    NONE,
-    D,
-    D1,
-    D2,
-    H1,
-    H2,
-    V1,
-    V2
+    std::shared_ptr<T[]> m;
+    unsigned int ptr = 0;
 };
 
 template <typename T>
 class matrix
 {
-    std::shared_ptr<data<T>> _data;
+    std::shared_ptr<T[]> _data;
     bound _bound;
 
 public:
-    matrix() : _data(nullptr), _bound(0, 0, 0, 0) {};
-    matrix(unsigned int n, unsigned int m) : _data(std::make_shared<data<T>>(n, m)), _bound(0, n, 0, m) {}
-    matrix(const matrix<T> &parent, const bound &_b) : _data(parent._data), _bound(_b)
+    void set_data(const std::shared_ptr<T[]> &data)
     {
-        _bound.row_start += parent._bound.row_start;
-        _bound.column_start += parent._bound.column_start;
-        _bound.row_end += parent._bound.row_start;
-        _bound.column_end += parent._bound.column_start;
+        _data = data;
+    };
+    const std::shared_ptr<T[]> &get_data() { return _data; }
+    void set_bound(const bound &new_bound)
+    {
+        _bound = new_bound;
     }
+    const bound &get_bound() { return _bound; }
     void show(std::ostream &cout)
     {
-        unsigned int step = _data->_m;
-        for (unsigned int i = _bound.row_start; i < _bound.row_end; ++i)
+        unsigned int end = _bound.start + _bound.n * _bound.m;
+        for (unsigned int i = _bound.start; i < end; ++i)
         {
-            for (unsigned int j = _bound.column_start; j < _bound.column_end; ++j)
-            {
-                cout << _data->_numbers[i * step + j] << ' ';
-            }
-            cout << '\n';
+            cout << _data[i] << ' ';
+            if ((i - _bound.start) % _bound.m == _bound.m - 1)
+                cout << '\n';
         }
     }
     T &set(unsigned int n, unsigned int m)
     {
-        unsigned int _n = _bound.row_end - _bound.row_start;
-        unsigned int _m = _bound.column_end - _bound.column_start;
-        unsigned int step = _data->_m;
-        if (n < 1 || n > _n || m < 1 || m > _m)
+        if (n > _bound.n || n < 1 || m > _bound.m || m < 1)
         {
-            throw "Out of bounds";
+            throw "out of bound";
         }
-        unsigned int idx1 = _bound.row_start + n - 1;
-        unsigned int idx2 = _bound.column_start + m - 1;
-        return _data->_numbers[idx1 * step + idx2];
+        return _data[_bound.start + (n - 1) * _bound.m + (m - 1)];
     }
-
     const T &get(unsigned int n, unsigned int m) const
     {
-        unsigned int _n = _bound.row_end - _bound.row_start;
-        unsigned int _m = _bound.column_end - _bound.column_start;
-        unsigned int step = _data->_m;
-        if (n < 1 || n > _n || m < 1 || m > _m)
+        if (n > _bound.n || n < 1 || m > _bound.m || m < 1)
         {
-            throw "Out of bounds";
+            throw "out of bound";
         }
-        unsigned int idx1 = _bound.row_start + n - 1;
-        unsigned int idx2 = _bound.column_start + m - 1;
-        return _data->_numbers[idx1 * step + idx2];
+        return _data[_bound.start + (n - 1) * _bound.m + (m - 1)];
     }
-    std::vector<matrix<T>> split()
-    {
-        unsigned int _n = _bound.row_end - _bound.row_start;
-        unsigned int _m = _bound.column_end - _bound.column_start;
-        const matrix<T> &mother = *this;
-        if (_n == 1 && _m > 1)
-        {
-            bound b1(0, mother.n(), 0, mother.m() / 2);
-            matrix<int> A11(mother, b1);
-
-            bound b2(0, mother.n(), mother.m() / 2, mother.m());
-            matrix<int> A12(mother, b2);
-
-            return std::vector<matrix<T>>{A11, A12};
-        }
-        if (_n > 1 && _m == 1)
-        {
-            bound b1(0, mother.n() / 2, 0, mother.m());
-            matrix<int> A11(mother, b1);
-
-            bound b3(mother.n() / 2, mother.n(), 0, mother.m());
-            matrix<int> A21(mother, b3);
-
-            return std::vector<matrix<T>>{A11, A21};
-        }
-        if (_n == 1 && _m == 1)
-        {
-            bound b1(0, mother.n(), 0, mother.m());
-            matrix<int> A11(mother, b1);
-            return std::vector<matrix<int>>{A11};
-        }
-
-        bound b1(0, mother.n() / 2, 0, mother.m() / 2);
-        matrix<int> A11(mother, b1);
-
-        bound b2(0, mother.n() / 2, mother.m() / 2, mother.m());
-        matrix<int> A12(mother, b2);
-
-        bound b3(mother.n() / 2, mother.n(), 0, mother.m() / 2);
-        matrix<int> A21(mother, b3);
-
-        bound b4(mother.n() / 2, mother.n(), mother.m() / 2, mother.m());
-        matrix<int> A22(mother, b4);
-
-        return std::vector<matrix<T>>{A11, A12, A21, A22};
-    }
-    unsigned int n() const { return _bound.row_end - _bound.row_start; }
-    unsigned int m() const { return _bound.column_end - _bound.column_start; }
-    unsigned int count() const { return n() * m(); }
+    unsigned int n() const { return _bound.n; }
+    unsigned int m() const { return _bound.m; }
+    unsigned int count() const { return _bound.n * _bound.m; }
 
     void insert(const matrix<T> &argv, letters letter)
     {
         if (n() != argv.n() * 2)
         {
-            qwertuiyoqwert throw "size mismatch";
+            throw "size mismatch";
         }
         switch (letter)
         {
         case (letters::D):
-            plus(bound(0, n() / 2, 0, n() / 2), argv);
-            plus(bound(n() / 2, n(), n() / 2, n()), argv);
+            plus(rect(0, n() / 2, 0, n() / 2), argv);
+            plus(rect(n() / 2, n(), n() / 2, n()), argv);
             break;
         case (letters::D1):
-            plus(bound(0, n() / 2, 0, n() / 2), argv);
+            plus(rect(0, n() / 2, 0, n() / 2), argv);
             break;
         case (letters::D2):
-            plus(bound(n() / 2, n(), n() / 2, n()), argv);
+            plus(rect(n() / 2, n(), n() / 2, n()), argv);
             break;
         case (letters::H1):
-            minus(bound(0, n() / 2, 0, n() / 2), argv);
-            plus(bound(0, n() / 2, n() / 2, n()), argv);
+            minus(rect(0, n() / 2, 0, n() / 2), argv);
+            plus(rect(0, n() / 2, n() / 2, n()), argv);
             break;
         case (letters::H2):
-            plus(bound(n() / 2, n(), 0, n() / 2), argv);
-            minus(bound(n() / 2, n(), n() / 2, n()), argv);
+            plus(rect(n() / 2, n(), 0, n() / 2), argv);
+            minus(rect(n() / 2, n(), n() / 2, n()), argv);
             break;
         case (letters::V1):
-            plus(bound(n() / 2, n(), 0, n() / 2), argv);
-            plus(bound(0, n() / 2, 0, n() / 2), argv);
+            plus(rect(n() / 2, n(), 0, n() / 2), argv);
+            plus(rect(0, n() / 2, 0, n() / 2), argv);
             break;
         case (letters::V2):
-            plus(bound(0, n() / 2, n() / 2, n()), argv);
-            plus(bound(n() / 2, n(), n() / 2, n()), argv);
+            plus(rect(0, n() / 2, n() / 2, n()), argv);
+            plus(rect(n() / 2, n(), n() / 2, n()), argv);
             break;
         default:
             break;
         }
     }
 
-    void plus(const bound &b, const matrix<T> &argv)
+    void plus(const rect &b, const matrix<T> &argv)
     {
         if (argv.n() != b.n() || argv.m() != b.m())
         {
@@ -207,7 +155,7 @@ public:
         }
     }
 
-    void minus(bound b, const matrix<T> &argv)
+    void minus(const rect &b, const matrix<T> &argv)
     {
         if (argv.n() != b.n() || argv.m() != b.m())
         {
@@ -223,13 +171,123 @@ public:
     }
 };
 
-template <typename U>
+template <typename T>
 struct task
 {
-    matrix<U> argv1;
-    matrix<U> argv2;
+    matrix<T> argv1;
+    matrix<T> argv2;
     letters letter;
 };
+
+template <typename T>
+matrix<T> copy(matrix<T> &source, letters letter, std::vector<memory<T>> &letter_buffers, unsigned int offset)
+{
+    matrix<T> ans;
+    unsigned int n = source.n();
+    letter_buffers[letter].ptr -= offset;
+    ans.set_data(letter_buffers[letter].m);
+    ans.set_bound(bound(letter_buffers[letter].ptr, n, n));
+    for (unsigned int i = 0; i < n; ++i)
+    {
+        for (unsigned int j = 0; j < n; ++j)
+        {
+            ans.set(i + 1, j + 1) = source.get(i + 1, j + 1);
+        }
+    }
+    return ans;
+}
+
+/*
+разделяет данные на блоки и суммирует их
+*/
+template <typename T>
+std::vector<matrix<T>> split_and_summ(const matrix<T> &argv1, const matrix<T> &argv2, memory<T> &operands)
+{
+    // D
+    unsigned int n = argv1.n() / 2;
+    std::vector<matrix<T>> matrix_summs(14);
+    for (unsigned int i = 0; i < 14; ++i)
+    {
+        matrix_summs[i].set_data(operands.m);
+        matrix_summs[i].set_bound(bound(operands.ptr, n, n));
+        operands.ptr += n * n;
+    }
+    T q1 = 0;
+    T q2 = 0;
+
+    for (unsigned int i = 0; i < n; ++i)
+    {
+        for (unsigned int j = 0; j < n; ++j)
+        {
+            // A11 + A22
+            q1 = argv1.get(i + 1, j + 1);
+            q2 = argv1.get(n + i + 1, n + j + 1);
+            matrix_summs[0].set(i + 1, j + 1) = q1 + q2;
+
+            // B11 + B22
+            q1 = argv2.get(i + 1, j + 1);
+            q2 = argv2.get(n + i + 1, n + j + 1);
+            matrix_summs[1].set(i + 1, j + 1) = q1 + q2;
+
+            // A12 - A22
+            q1 = argv1.get(i + 1, n + j + 1);
+            q2 = argv1.get(n + i + 1, n + j + 1);
+            matrix_summs[2].set(i + 1, j + 1) = q1 - q2;
+
+            // B21 + B22
+            q1 = argv2.get(n + i + 1, j + 1);
+            q2 = argv2.get(n + i + 1, n + j + 1);
+            matrix_summs[3].set(i + 1, j + 1) = q1 + q2;
+
+            // A21 - A11
+            q1 = argv1.get(n + i + 1, j + 1);
+            q2 = argv1.get(i + 1, j + 1);
+            matrix_summs[4].set(i + 1, j + 1) = q1 - q2;
+
+            // B11 + B12
+            q1 = argv2.get(i + 1, j + 1);
+            q2 = argv2.get(i + 1, n + j + 1);
+            matrix_summs[5].set(i + 1, j + 1) = q1 + q2;
+
+            // A11 + A12
+            q1 = argv1.get(i + 1, j + 1);
+            q2 = argv1.get(i + 1, n + j + 1);
+            matrix_summs[6].set(i + 1, j + 1) = q1 + q2;
+
+            // B22 + 0;
+            q1 = argv2.get(n + i + 1, n + j + 1);
+            matrix_summs[7].set(i + 1, j + 1) = q1;
+
+            // A21 + A22
+            q1 = argv1.get(n + i + 1, j + 1);
+            q2 = argv1.get(n + i + 1, n + j + 1);
+            matrix_summs[8].set(i + 1, j + 1) = q1 + q2;
+
+            // B11 + 0;
+            q1 = argv2.get(i + 1, j + 1);
+            matrix_summs[9].set(i + 1, j + 1) = q1;
+
+            // A22 + 0
+            q1 = argv1.get(n + i + 1, n + j + 1);
+            matrix_summs[10].set(i + 1, j + 1) = q1;
+
+            // B21 - B11
+            q1 = argv2.get(n + i + 1, j + 1);
+            q2 = argv2.get(i + 1, j + 1);
+            matrix_summs[11].set(i + 1, j + 1) = q1 - q2;
+
+            // A11
+            q1 = argv1.get(i + 1, j + 1);
+            matrix_summs[12].set(i + 1, j + 1) = q1;
+
+            // B12 - B22
+            q1 = argv2.get(i + 1, n + j + 1);
+            q2 = argv2.get(n + i + 1, n + j + 1);
+            matrix_summs[13].set(i + 1, j + 1) = q1 - q2;
+        }
+    }
+    return matrix_summs;
+}
 
 template <typename T>
 /*
@@ -241,53 +299,79 @@ matrix<T> strassen(const matrix<T> &argv1, const matrix<T> &argv2)
     {
         throw "size mismatch";
     }
-    std::stack<task<T>> ttt;   // tasks
-    std::stack<matrix<T>> rrr; // results
+    unsigned int n = argv1.n();
+
+    memory<T> operands;
+    operands.m = std::shared_ptr<T[]>(new T[4 * n * n]);
+
+    memory<T> buffer;
+    buffer.m = std::shared_ptr<T[]>(new T[n * n / 4]);
+
+    std::vector<memory<T>> letter_buffers(7);
+    for (int i = 0; i < 7; ++i)
+    {
+        letter_buffers[i].m = std::shared_ptr<T[]>(new T[n * n / 3 + 1]);
+    }
+
+    std::stack<task<T>> ttt;
+    std::stack<matrix<T>> rrr;
     std::stack<unsigned int> counter;
 
     task<T> t0;
     t0.argv1 = argv1;
-    t0.argv2 = argv2;
-
+    t0.argv1 = argv2;
     ttt.push(t0);
-
     while (true)
     {
         if (ttt.empty())
         {
-            while (counter.size() > 1 && counter.top() == 7)
+            while (!counter.empty() && counter.top() == 7)
             {
                 unsigned int n = rrr.top().n();
-                matrix<T> A(2 * n, 2 * n);
-
+                matrix<T> A;
+                A.set_data(buffer.m);
+                A.set_bound(bound(buffer.ptr, 2 * n, 2 * n));
                 for (auto i : {D, D1, D2, H1, H2, V1, V2})
                 {
                     A.insert(rrr.top(), i);
                     rrr.pop();
                 }
                 counter.pop();
+                /*
+                (counter.top == 0) -  вычисляем V2
+                (counter.top == 1) - вычисляем V1
+                (counter.top == 6) - вычисляем D
+                */
+
+                letters l = (letters)(counter.top());
+                copy(A, l, letter_buffers, n);
+                buffer.ptr = 0;
                 rrr.push(A);
                 counter.top() += 1;
             }
             break;
         }
-        task<T> t = ttt.top();
-        ttt.pop();
 
-        if (t.argv1.count() < 4 && t.argv2.count() < 4)
+        task<T> t = ttt.top();
+        unsigned int current_n = t.argv1.n();
+        ttt.pop();
+        // смещение указателя
+        operands.ptr -= 2 * current_n * current_n;
+        if (t.argv1.n() < 4 && t.argv2.n() < 4)
         {
-            unsigned int n = t.argv1.n();
-            matrix<T> result(n, n);
-            for (unsigned int i = 0; i < n; ++i)
+            matrix<T> result;
+            result.set_data(letter_buffers[t.letter].m);
+            result.set_bound(bound(letter_buffers[t.letter].ptr, current_n, current_n));
+            letter_buffers[t.letter].ptr += current_n * current_n;
+            for (unsigned int i = 0; i < current_n; ++i)
             {
-                for (unsigned int j = 0; j < n; ++j)
+                for (unsigned int j = 0; j < current_n; ++j)
                 {
                     T summ = 0;
-                    for (unsigned int k = 0; k < n; ++k)
+                    for (unsigned int k = 0; k < current_n; ++k)
                     {
                         T q1 = t.argv1.get(i + 1, k + 1);
-                        T q2 = t.argv2.get(k + 1, j + 1);
-
+                        T q2 = t.argv1.get(k + 1, j + 1);
                         summ += q1 * q2;
                     }
                     result.set(i + 1, j + 1) = summ;
@@ -301,107 +385,54 @@ matrix<T> strassen(const matrix<T> &argv1, const matrix<T> &argv2)
             while (!counter.empty() && counter.top() == 7)
             {
                 unsigned int n = rrr.top().n();
-                matrix<T> A(2 * n, 2 * n);
-
+                matrix<T> A;
+                A.set_data(buffer.m);
+                A.set_bound(bound(buffer.ptr, 2 * n, 2 * n));
                 for (auto i : {D, D1, D2, H1, H2, V1, V2})
                 {
                     A.insert(rrr.top(), i);
                     rrr.pop();
                 }
                 counter.pop();
+                // (counter.top == 0) - V2
+                // (counter.top == 1) - V1
+
+                //(counter.top == 6) - D
+
+                letters l = (letters)(counter.top());
+                copy(A, l, letter_buffers, n);
+                // сместить указатель записи в нужном буфере +
+                // переписать данные +
+                // сместить указатель в buffer +
+                buffer.ptr = 0;
                 rrr.push(A);
                 counter.top() += 1;
             }
 
             counter.push(0);
-            std::vector<matrix<T>> daughter1 = t.argv1.split();
-            std::vector<matrix<T>> daughter2 = t.argv2.split();
-
-            task<T> t1;
-            t1.argv1 = daughter1[0] + daughter1[3];
-            t1.argv2 = daughter2[0] + daughter2[3];
-            t1.letter = D;
-            ttt.push(t1);
-
-            task<T> t2;
-            t2.argv1 = daughter1[1] - daughter1[3];
-            t2.argv2 = daughter2[2] + daughter2[3];
-            t2.letter = D1;
-            ttt.push(t2);
-
-            task<T> t3;
-            t3.argv1 = daughter1[2] - daughter1[0];
-            t3.argv2 = daughter2[0] + daughter2[1];
-            t3.letter = D2;
-            ttt.push(t3);
-
-            task<T> t4;
-            t4.argv1 = daughter1[0] + daughter1[1];
-            t4.argv2 = daughter2[3];
-            t4.letter = H1;
-            ttt.push(t4);
-
-            task<T> t5;
-            t5.argv1 = daughter1[2] + daughter1[3];
-            t5.argv2 = daughter2[0];
-            t5.letter = H2;
-            ttt.push(t5);
-
-            task<T> t6;
-            t6.argv1 = daughter1[3];
-            t6.argv2 = daughter2[2] - daughter2[0];
-            t6.letter = V1;
-            ttt.push(t6);
-
-            task<T> t7;
-            t7.argv1 = daughter1[0];
-            t7.argv2 = daughter2[1] - daughter2[3];
-            t7.letter = V2;
-            ttt.push(t7);
+            std::vector<matrix<T>> matrix_sums = split_and_summ(t.argv1, t.argv2, operands);
+            letters l[7]{D, D1, D2, H1, H2, V1, V2};
+            for (unsigned int i = 0; i < 13; i += 2)
+            {
+                task<T> ti;
+                ti.argv1 = matrix_sums[i];
+                ti.argv2 = matrix_sums[i + 1];
+                ti.letter = l[i / 2];
+            }
         }
     }
 
-    unsigned int n = rrr.top().n();
-    matrix<T> A(2 * n, 2 * n);
-
+    operands.m = nullptr;
+    buffer.m = nullptr;
+    std::shared_ptr<T[]> result_memory(new T[n * n]);
+    n = rrr.top().n();
+    matrix<T> A;
+    A.set_data(result_memory);
+    A.set_bound(bound(0, 2 * n, 2 * n));
     for (auto i : {D, D1, D2, H1, H2, V1, V2})
     {
         A.insert(rrr.top(), i);
         rrr.pop();
     }
     return A;
-}
-
-template <typename T>
-matrix<T> operator+(const matrix<T> &argv1, const matrix<T> &argv2)
-{
-    if (argv1.n() != argv2.n() || argv1.m() != argv2.m())
-    {
-        throw "size mismatch";
-    }
-    matrix<T> result(argv1.n(), argv1.m());
-    for (int i = 0; i < argv1.count(); ++i)
-    {
-        unsigned int idx1 = i / argv1.m();
-        unsigned int idx2 = i % argv1.m();
-        result.set(idx1 + 1, idx2 + 1) = argv1.get(idx1 + 1, idx2 + 1) + argv2.get(idx1 + 1, idx2 + 1);
-    }
-    return result;
-}
-
-template <typename T>
-matrix<T> operator-(const matrix<T> &argv1, const matrix<T> &argv2)
-{
-    if (argv1.n() != argv2.n() || argv1.m() != argv2.m())
-    {
-        throw "size mismatch";
-    }
-    matrix<T> result(argv1.n(), argv1.m());
-    for (int i = 0; i < argv1.count(); ++i)
-    {
-        unsigned int idx1 = i / argv1.m();
-        unsigned int idx2 = i % argv1.m();
-        result.set(idx1 + 1, idx2 + 1) = argv1.get(idx1 + 1, idx2 + 1) - argv2.get(idx1 + 1, idx2 + 1);
-    }
-    return result;
 }
