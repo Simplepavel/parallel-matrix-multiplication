@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include <stack>
+#include <cstring>
 
 enum letters : char
 {
@@ -52,6 +53,7 @@ struct memory
 {
     std::shared_ptr<T[]> m;
     unsigned int ptr = 0;
+    unsigned int length = 0;
 };
 
 template <typename T>
@@ -71,7 +73,7 @@ public:
         _bound = new_bound;
     }
     const bound &get_bound() { return _bound; }
-    void show(std::ostream &cout)
+    void show(std::ostream &cout) const
     {
         unsigned int end = _bound.start + _bound.n * _bound.m;
         for (unsigned int i = _bound.start; i < end; ++i)
@@ -180,18 +182,19 @@ struct task
 };
 
 template <typename T>
-matrix<T> copy(matrix<T> &source, letters letter, std::vector<memory<T>> &letter_buffers, unsigned int offset)
+matrix<T> copy(matrix<T> &source, letters letter, std::vector<memory<T>> &letter_buffers)
 {
     matrix<T> ans;
     unsigned int n = source.n();
-    letter_buffers[letter].ptr -= offset;
     ans.set_data(letter_buffers[letter].m);
     ans.set_bound(bound(letter_buffers[letter].ptr, n, n));
+    letter_buffers[letter].ptr += n * n;
     for (unsigned int i = 0; i < n; ++i)
     {
         for (unsigned int j = 0; j < n; ++j)
         {
             ans.set(i + 1, j + 1) = source.get(i + 1, j + 1);
+            source.set(i + 1, j + 1) = 0;
         }
     }
     return ans;
@@ -201,10 +204,11 @@ matrix<T> copy(matrix<T> &source, letters letter, std::vector<memory<T>> &letter
 разделяет данные на блоки и суммирует их
 */
 template <typename T>
-std::vector<matrix<T>> split_and_summ(const matrix<T> &argv1, const matrix<T> &argv2, memory<T> &operands)
+std::vector<matrix<T>> split_and_summ(const matrix<T> &argv1, const matrix<T> &argv2, memory<T> &operands, memory<T> &buffer)
 {
-    // D
-    unsigned int n = argv1.n() / 2;
+
+    unsigned int N = argv1.n();
+    unsigned int n = N / 2;
     std::vector<matrix<T>> matrix_summs(14);
     for (unsigned int i = 0; i < 14; ++i)
     {
@@ -212,80 +216,102 @@ std::vector<matrix<T>> split_and_summ(const matrix<T> &argv1, const matrix<T> &a
         matrix_summs[i].set_bound(bound(operands.ptr, n, n));
         operands.ptr += n * n;
     }
+
+    matrix<T> copy_argv1;
+    copy_argv1.set_data(buffer.m);
+    copy_argv1.set_bound(bound(buffer.ptr, N, N));
+    buffer.ptr += N * N;
+
+    matrix<T> copy_argv2;
+    copy_argv2.set_data(buffer.m);
+    copy_argv2.set_bound(bound(buffer.ptr, N, N));
+    buffer.ptr += N * N;
+
+    for (unsigned int i = 0; i < N; ++i)
+    {
+        for (unsigned int j = 0; j < N; ++j)
+        {
+            copy_argv1.set(i + 1, j + 1) = argv1.get(i + 1, j + 1);
+            copy_argv2.set(i + 1, j + 1) = argv2.get(i + 1, j + 1);
+        }
+    }
+
     T q1 = 0;
     T q2 = 0;
-
     for (unsigned int i = 0; i < n; ++i)
     {
         for (unsigned int j = 0; j < n; ++j)
         {
+
             // A11 + A22
-            q1 = argv1.get(i + 1, j + 1);
-            q2 = argv1.get(n + i + 1, n + j + 1);
+            q1 = copy_argv1.get(i + 1, j + 1);
+            q2 = copy_argv1.get(n + i + 1, n + j + 1);
             matrix_summs[0].set(i + 1, j + 1) = q1 + q2;
 
             // B11 + B22
-            q1 = argv2.get(i + 1, j + 1);
-            q2 = argv2.get(n + i + 1, n + j + 1);
+            q1 = copy_argv2.get(i + 1, j + 1);
+            q2 = copy_argv2.get(n + i + 1, n + j + 1);
             matrix_summs[1].set(i + 1, j + 1) = q1 + q2;
 
             // A12 - A22
-            q1 = argv1.get(i + 1, n + j + 1);
-            q2 = argv1.get(n + i + 1, n + j + 1);
+            q1 = copy_argv1.get(i + 1, n + j + 1);
+            q2 = copy_argv1.get(n + i + 1, n + j + 1);
             matrix_summs[2].set(i + 1, j + 1) = q1 - q2;
 
             // B21 + B22
-            q1 = argv2.get(n + i + 1, j + 1);
-            q2 = argv2.get(n + i + 1, n + j + 1);
+            q1 = copy_argv2.get(n + i + 1, j + 1);
+            q2 = copy_argv2.get(n + i + 1, n + j + 1);
             matrix_summs[3].set(i + 1, j + 1) = q1 + q2;
 
             // A21 - A11
-            q1 = argv1.get(n + i + 1, j + 1);
-            q2 = argv1.get(i + 1, j + 1);
+            q1 = copy_argv1.get(n + i + 1, j + 1);
+            q2 = copy_argv1.get(i + 1, j + 1);
             matrix_summs[4].set(i + 1, j + 1) = q1 - q2;
 
             // B11 + B12
-            q1 = argv2.get(i + 1, j + 1);
-            q2 = argv2.get(i + 1, n + j + 1);
+            q1 = copy_argv2.get(i + 1, j + 1);
+            q2 = copy_argv2.get(i + 1, n + j + 1);
             matrix_summs[5].set(i + 1, j + 1) = q1 + q2;
 
             // A11 + A12
-            q1 = argv1.get(i + 1, j + 1);
-            q2 = argv1.get(i + 1, n + j + 1);
+            q1 = copy_argv1.get(i + 1, j + 1);
+            q2 = copy_argv1.get(i + 1, n + j + 1);
             matrix_summs[6].set(i + 1, j + 1) = q1 + q2;
 
             // B22 + 0;
-            q1 = argv2.get(n + i + 1, n + j + 1);
+            q1 = copy_argv2.get(n + i + 1, n + j + 1);
             matrix_summs[7].set(i + 1, j + 1) = q1;
 
             // A21 + A22
-            q1 = argv1.get(n + i + 1, j + 1);
-            q2 = argv1.get(n + i + 1, n + j + 1);
+            q1 = copy_argv1.get(n + i + 1, j + 1);
+            q2 = copy_argv1.get(n + i + 1, n + j + 1);
             matrix_summs[8].set(i + 1, j + 1) = q1 + q2;
 
             // B11 + 0;
-            q1 = argv2.get(i + 1, j + 1);
+            q1 = copy_argv2.get(i + 1, j + 1);
             matrix_summs[9].set(i + 1, j + 1) = q1;
 
             // A22 + 0
-            q1 = argv1.get(n + i + 1, n + j + 1);
+            q1 = copy_argv1.get(n + i + 1, n + j + 1);
             matrix_summs[10].set(i + 1, j + 1) = q1;
 
             // B21 - B11
-            q1 = argv2.get(n + i + 1, j + 1);
-            q2 = argv2.get(i + 1, j + 1);
+            q1 = copy_argv2.get(n + i + 1, j + 1);
+            q2 = copy_argv2.get(i + 1, j + 1);
             matrix_summs[11].set(i + 1, j + 1) = q1 - q2;
 
             // A11
-            q1 = argv1.get(i + 1, j + 1);
+            q1 = copy_argv1.get(i + 1, j + 1);
             matrix_summs[12].set(i + 1, j + 1) = q1;
 
             // B12 - B22
-            q1 = argv2.get(i + 1, n + j + 1);
-            q2 = argv2.get(n + i + 1, n + j + 1);
+            q1 = copy_argv2.get(i + 1, n + j + 1);
+            q2 = copy_argv2.get(n + i + 1, n + j + 1);
             matrix_summs[13].set(i + 1, j + 1) = q1 - q2;
         }
     }
+    buffer.ptr = 0;
+    std::memset(buffer.m.get(), 0, buffer.length);
     return matrix_summs;
 }
 
@@ -302,15 +328,19 @@ matrix<T> strassen(const matrix<T> &argv1, const matrix<T> &argv2)
     unsigned int n = argv1.n();
 
     memory<T> operands;
-    operands.m = std::shared_ptr<T[]>(new T[4 * n * n]);
+    operands.length = 4 * n * n + 52;
+    operands.m = std::shared_ptr<T[]>(new T[operands.length]{0});
 
     memory<T> buffer;
-    buffer.m = std::shared_ptr<T[]>(new T[n * n / 4]);
+    buffer.length = 2 * n * n;
+    buffer.m = std::shared_ptr<T[]>(new T[buffer.length]{0});
 
     std::vector<memory<T>> letter_buffers(7);
+    unsigned int letter_buffer_length = n * n / 3 + 1;
     for (int i = 0; i < 7; ++i)
     {
-        letter_buffers[i].m = std::shared_ptr<T[]>(new T[n * n / 3 + 1]);
+        letter_buffers[i].length = letter_buffer_length;
+        letter_buffers[i].m = std::shared_ptr<T[]>(new T[letter_buffer_length]{0});
     }
 
     std::stack<task<T>> ttt;
@@ -319,13 +349,13 @@ matrix<T> strassen(const matrix<T> &argv1, const matrix<T> &argv2)
 
     task<T> t0;
     t0.argv1 = argv1;
-    t0.argv1 = argv2;
+    t0.argv2 = argv2;
     ttt.push(t0);
     while (true)
     {
         if (ttt.empty())
         {
-            while (!counter.empty() && counter.top() == 7)
+            while (counter.size() > 1 && counter.top() == 7)
             {
                 unsigned int n = rrr.top().n();
                 matrix<T> A;
@@ -334,19 +364,13 @@ matrix<T> strassen(const matrix<T> &argv1, const matrix<T> &argv2)
                 for (auto i : {D, D1, D2, H1, H2, V1, V2})
                 {
                     A.insert(rrr.top(), i);
+                    letter_buffers[i].ptr -= n * n;
                     rrr.pop();
                 }
                 counter.pop();
-                /*
-                (counter.top == 0) -  вычисляем V2
-                (counter.top == 1) - вычисляем V1
-                (counter.top == 6) - вычисляем D
-                */
-
                 letters l = (letters)(counter.top());
-                copy(A, l, letter_buffers, n);
                 buffer.ptr = 0;
-                rrr.push(A);
+                rrr.push(copy(A, l, letter_buffers));
                 counter.top() += 1;
             }
             break;
@@ -355,9 +379,11 @@ matrix<T> strassen(const matrix<T> &argv1, const matrix<T> &argv2)
         task<T> t = ttt.top();
         unsigned int current_n = t.argv1.n();
         ttt.pop();
-        // смещение указателя
-        operands.ptr -= 2 * current_n * current_n;
-        if (t.argv1.n() < 4 && t.argv2.n() < 4)
+        if (operands.ptr > 0)
+        {
+            operands.ptr -= 2 * current_n * current_n;
+        }
+        if (t.argv1.count() < 4 && t.argv2.count() < 4)
         {
             matrix<T> result;
             result.set_data(letter_buffers[t.letter].m);
@@ -371,7 +397,7 @@ matrix<T> strassen(const matrix<T> &argv1, const matrix<T> &argv2)
                     for (unsigned int k = 0; k < current_n; ++k)
                     {
                         T q1 = t.argv1.get(i + 1, k + 1);
-                        T q2 = t.argv1.get(k + 1, j + 1);
+                        T q2 = t.argv2.get(k + 1, j + 1);
                         summ += q1 * q2;
                     }
                     result.set(i + 1, j + 1) = summ;
@@ -391,26 +417,18 @@ matrix<T> strassen(const matrix<T> &argv1, const matrix<T> &argv2)
                 for (auto i : {D, D1, D2, H1, H2, V1, V2})
                 {
                     A.insert(rrr.top(), i);
+                    letter_buffers[i].ptr -= n * n;
                     rrr.pop();
                 }
                 counter.pop();
-                // (counter.top == 0) - V2
-                // (counter.top == 1) - V1
-
-                //(counter.top == 6) - D
-
                 letters l = (letters)(counter.top());
-                copy(A, l, letter_buffers, n);
-                // сместить указатель записи в нужном буфере +
-                // переписать данные +
-                // сместить указатель в buffer +
                 buffer.ptr = 0;
-                rrr.push(A);
+                rrr.push(copy(A, l, letter_buffers));
                 counter.top() += 1;
             }
 
             counter.push(0);
-            std::vector<matrix<T>> matrix_sums = split_and_summ(t.argv1, t.argv2, operands);
+            std::vector<matrix<T>> matrix_sums = split_and_summ(t.argv1, t.argv2, operands, buffer);
             letters l[7]{D, D1, D2, H1, H2, V1, V2};
             for (unsigned int i = 0; i < 13; i += 2)
             {
@@ -418,14 +436,16 @@ matrix<T> strassen(const matrix<T> &argv1, const matrix<T> &argv2)
                 ti.argv1 = matrix_sums[i];
                 ti.argv2 = matrix_sums[i + 1];
                 ti.letter = l[i / 2];
+                ttt.push(ti);
             }
         }
     }
 
     operands.m = nullptr;
     buffer.m = nullptr;
-    std::shared_ptr<T[]> result_memory(new T[n * n]);
+    std::shared_ptr<T[]> result_memory(new T[n * n]{0});
     n = rrr.top().n();
+
     matrix<T> A;
     A.set_data(result_memory);
     A.set_bound(bound(0, 2 * n, 2 * n));
