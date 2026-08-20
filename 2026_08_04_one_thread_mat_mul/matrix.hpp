@@ -51,7 +51,7 @@ struct rect
 template <typename T>
 struct memory
 {
-    std::shared_ptr<T[]> m;
+    T *m;
     unsigned int ptr = 0;
     unsigned int length = 0;
 };
@@ -59,15 +59,15 @@ struct memory
 template <typename T>
 class matrix
 {
-    std::shared_ptr<T[]> _data;
+    T *_data;
     bound _bound;
 
 public:
-    void set_data(const std::shared_ptr<T[]> &data)
+    void set_data(T *data)
     {
         _data = data;
     };
-    const std::shared_ptr<T[]> &get_data() { return _data; }
+    const T *get_data() { return _data; }
     void set_bound(const bound &new_bound)
     {
         _bound = new_bound;
@@ -102,7 +102,6 @@ public:
     unsigned int n() const { return _bound.n; }
     unsigned int m() const { return _bound.m; }
     unsigned int count() const { return _bound.n * _bound.m; }
-
     void insert(const matrix<T> &argv, letters letter)
     {
         if (n() != argv.n() * 2)
@@ -141,7 +140,6 @@ public:
             break;
         }
     }
-
     void plus(const rect &b, const matrix<T> &argv)
     {
         if (argv.n() != b.n() || argv.m() != b.m())
@@ -156,7 +154,6 @@ public:
             }
         }
     }
-
     void minus(const rect &b, const matrix<T> &argv)
     {
         if (argv.n() != b.n() || argv.m() != b.m())
@@ -311,7 +308,7 @@ std::vector<matrix<T>> split_and_summ(const matrix<T> &argv1, const matrix<T> &a
         }
     }
     buffer.ptr = 0;
-    std::memset(buffer.m.get(), 0, buffer.length);
+    std::memset(buffer.m, 0, buffer.length);
     return matrix_summs;
 }
 
@@ -319,28 +316,29 @@ template <typename T>
 /*
 для понятности буду использовать только n() вызов, т.к n = m по предположению
 */
-matrix<T> strassen(const matrix<T> &argv1, const matrix<T> &argv2)
+matrix<T> strassen(const matrix<T> &argv1, const matrix<T> &argv2, T *output)
 {
     if (argv1.n() != argv2.n())
     {
         throw "size mismatch";
     }
     unsigned int n = argv1.n();
+    const unsigned int s = 10000;
 
     memory<T> operands;
-    operands.length = 4 * n * n + 52;
-    operands.m = std::shared_ptr<T[]>(new T[operands.length]{0});
+    operands.length = 4 * n * n;
+    operands.m = new T[operands.length]{0};
 
     memory<T> buffer;
     buffer.length = 2 * n * n;
-    buffer.m = std::shared_ptr<T[]>(new T[buffer.length]{0});
+    buffer.m = new T[buffer.length]{0};
 
     std::vector<memory<T>> letter_buffers(7);
-    unsigned int letter_buffer_length = n * n / 3 + 1;
+    unsigned int letter_buffer_length = (n * n) / 3 + 1;
     for (int i = 0; i < 7; ++i)
     {
         letter_buffers[i].length = letter_buffer_length;
-        letter_buffers[i].m = std::shared_ptr<T[]>(new T[letter_buffer_length]{0});
+        letter_buffers[i].m = new T[letter_buffer_length]{0};
     }
 
     std::stack<task<T>> ttt;
@@ -383,7 +381,7 @@ matrix<T> strassen(const matrix<T> &argv1, const matrix<T> &argv2)
         {
             operands.ptr -= 2 * current_n * current_n;
         }
-        if (t.argv1.count() < 4 && t.argv2.count() < 4)
+        if (t.argv1.count() < s && t.argv2.count() < s)
         {
             matrix<T> result;
             result.set_data(letter_buffers[t.letter].m);
@@ -441,18 +439,21 @@ matrix<T> strassen(const matrix<T> &argv1, const matrix<T> &argv2)
         }
     }
 
-    operands.m = nullptr;
-    buffer.m = nullptr;
-    std::shared_ptr<T[]> result_memory(new T[n * n]{0});
-    n = rrr.top().n();
+    delete[] operands.m;
+    delete[] buffer.m;
 
+    n = rrr.top().n();
     matrix<T> A;
-    A.set_data(result_memory);
+    A.set_data(output);
     A.set_bound(bound(0, 2 * n, 2 * n));
     for (auto i : {D, D1, D2, H1, H2, V1, V2})
     {
         A.insert(rrr.top(), i);
         rrr.pop();
+    }
+    for (auto i : letter_buffers)
+    {
+        delete[] i.m;
     }
     return A;
 }
