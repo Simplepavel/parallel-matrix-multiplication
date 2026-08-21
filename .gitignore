@@ -1,3 +1,7 @@
+# OUR LIMITATIONS
+build/*
+*.7Z
+
 # Prerequisites
 *.d
 
@@ -47,5 +51,3 @@ vs
 
 # Windows thumbnail cache files
 thumbs.db
-
-build/*
