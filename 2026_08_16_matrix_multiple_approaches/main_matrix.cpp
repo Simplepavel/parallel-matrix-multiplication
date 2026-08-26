@@ -216,6 +216,7 @@ void multiply_matrix_for_cache_v1(
 	TODO: написать комментарий о том, в чём состоит оптимизация
 */
 
+
 struct bound
 {
 	unsigned int row_start;
