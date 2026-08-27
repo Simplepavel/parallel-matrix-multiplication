@@ -213,9 +213,9 @@ void multiply_matrix_for_cache_v1(
 }
 
 /*
-	TODO: написать комментарий о том, в чём состоит оптимизация
+	Матрица разбивается на блоки размером block_size, каждый их которых затем помещается в непрерывный
+	массив, который размещается в кэше.
 */
-
 
 struct bound
 {
@@ -247,9 +247,8 @@ struct stck
 {
 	T *data;
 	unsigned int size;
-	unsigned int capacity; // удалить данное поле
 
-	stck(T *new_data, unsigned int _cap) : data(new_data), size(0), capacity(_cap) {}
+	stck(T *new_data) : data(new_data), size(0) {}
 	void push(const T &value)
 	{
 		data[size++] = value;
@@ -298,10 +297,10 @@ void multiply_matrix_for_cache_v2(
 		mx = n;
 	std::size_t degree = log2(mx);
 	task *data = new task[7 * degree];
-	std::size_t block_size = 64 * 64;
+	std::size_t block_size = 128 * 128;
 	int *buffer1 = new int[block_size];
 	int *buffer2 = new int[block_size];
-	stck<task> stack(data, 7 * degree);
+	stck<task> stack(data);
 	std::size_t idx;
 	stack.push(task(bound(0, 0, l, m), bound(0, 0, m, n)));
 
@@ -541,7 +540,6 @@ void multiply_matrix_for_cache_v2(
 
 			else if (m1 > 1 && n1 == 1 && m2 == 1 && n2 > 1)
 			{
-				std::cout << "1\n";
 				t1.b1.row_start = b1.row_start;
 				t1.b1.column_start = b1.column_start;
 
