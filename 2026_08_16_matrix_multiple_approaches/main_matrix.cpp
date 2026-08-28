@@ -171,9 +171,7 @@ void multiply_matrix_as_in_math(
 			s = 0;
 			for (unsigned int k = 0; k < m; ++k)
 			{
-				q1 = a[i][k];
-				q2 = b[k][j];
-				s += q1 * q2;
+				s += a[i][k] * b[k][j];
 			}
 			c[i][j] = s;
 		}
@@ -205,8 +203,7 @@ void multiply_matrix_for_cache_v1(
 			q1 = a[i][j];
 			for (unsigned int k = 0; k < n; ++k)
 			{
-				q2 = b[j][k];
-				c[i][k] += q1 * q2;
+				c[i][k] += q1 * b[j][k];
 			}
 		}
 	}
