@@ -6,6 +6,15 @@
 #include <condition_variable>
 #include <vector>
 
+/*
+Классическая реализция потокобезопасного стека. Каждый поток, изменяющий стек операцией
+push или pop, будет ждать своей очереди для работы в критической зоне.
+Каждая операция push вызывает метод notify all для всех потоков, которые ждут
+условную переменную.
+
+Более подробное объяснения реализации см. в книге C++ concurrency in action. Anthony Williams
+*/
+
 template <typename T>
 class ts_stck // thread safe stack
 {
@@ -15,10 +24,9 @@ class ts_stck // thread safe stack
     std::condition_variable cond;
     static unsigned int optimal;
     bool flag; // конец работы
-    unsigned int cap;
 
 public:
-    ts_stck(unsigned int capacity) : size(0), flag(false), cap(capacity)
+    ts_stck(unsigned int capacity) : size(0), flag(false)
     {
         data = new T[capacity];
     }
@@ -73,7 +81,7 @@ unsigned int ts_stck<T>::optimal = std::thread::hardware_concurrency();
 #define STACK
 
 template <typename T>
-struct stck // simple stck
+struct stck // simple stack
 {
     T *data;
     unsigned int size;
