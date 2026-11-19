@@ -216,3 +216,17 @@ VMEM. Как и классических GPU, CPU передача являет�
 сетей, таких как LLM. В них убраны многие компоненты, такие как сложная система кэш памяти, сихронизатор 
 потоков и тп., которые есть в GPU. Также TPU делает акцент на работе с числами низкой точности(16, 8 бит), 
 что подходит для обучения без потери качества. 
+
+
+Источники информации:
+
+https://club.dns-shop.ru/blog/t-415-neiroseti-i-ai/114550-chto-takoe-neironnyie-uskoriteli-i-zachem-nujnyi/ - Что такое нейронные ускорители и зачем они нужны
+
+https://club.dns-shop.ru/blog/t-100-protsessoryi/121580-chto-takoe-npu-i-dlya-chego-oni-nujnyi/ - Что такое NPU и для чего они нужны
+
+https://habr.com/ru/articles/908962/ - Компьютерные модули на процессорах с TPU/NPU ускорителями, как альтернатива Nvidia Jetson
+
+https://www.youtube.com/watch?v=fRqOFrJ36Kc - Хватит греть воздух видеокартами: архитектура Ascend | Фёдор 
+Писниченко
+
+https://www.youtube.com/watch?v=GKQz4-esU5M&t=771s - Tensor Processing Units (TPUs) Explained
